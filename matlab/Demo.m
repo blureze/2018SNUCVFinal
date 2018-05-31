@@ -1,5 +1,4 @@
 %% initialize
-% dir = './Front-view-Cars/buick/img';
 sobel_threshold = 0.2;
 canny_threshold = 0.6;
 flag = 0;
@@ -14,11 +13,9 @@ I1 = sceneImage;
 while 1
     % step 0: edge detection
     I1_edge = edge(I1,'sobel', sobel_threshold);
-%     figure, imshow(I1_edge);
     
     % step 1: SCW
-    Iand = SCW(I1_edge, 6, 2, 12, 4, 0.7, 'mean');
-%     figure, imshow(Iand);
+    Iand = SCW(I1_edge, 6, 2, 12, 4, 0.7);
     
     % step 2: masking
     I2 = I1 .* Iand;
@@ -26,18 +23,11 @@ while 1
     I2(lower_bound:end, :) = 0;
     I2(:, 1:left_bound) = 0;
     I2(:, right_bound:end) = 0;
-%     figure, imshow(I2);
 
-%     % step 3: sauvola
-%     I3 = sauvola(I2, [15 15], 0.3);
-% %     figure, imshow(I3);
 
     % step 4: get property of each object and select those with: 
-    % 2 < 'Aspect Ratio'< 6, 'EulerNumber' > 3, 'Orientation' < 35
+    % 2 < 'Aspect Ratio'< 6, 'Orientation' < 35
     cc = bwconncomp(I2);
-    labeled = labelmatrix(cc);
-%     RGB_label = label2rgb(labeled, @copper, 'c', 'shuffle');
-%     figure, imshow(RGB_label,'InitialMagnification','fit');
     stats = regionprops(cc, 'Extrema', 'Orientation');
 
     selected_objects = zeros(1, numel(stats));
@@ -87,60 +77,72 @@ for i = 1:n
     matrix(i, :) = [x_min, x_max, y_min, y_max];
 end
 
-%% plate processing
-% for i = 1:n
-%     x_min = fix(matrix(i, 1));
-%     x_max = fix(matrix(i, 2));
-%     y_min = fix(matrix(i, 3));
-%     y_max = fix(matrix(i, 4));
-%     
-%     % step 1: crop the image
-%     I5 = sceneImage(y_min:y_max, x_min:x_max);
-%     
-%     % step 2: resize to 75x228
-%     I5 = imresize(I5, [75, 228]);
-%     
-%     % step 3: SCW
-%     I6 = SCW(I5, 2, 5, 4, 10, 1.3, 'std');
-%     
-%     % step 4: inverse I6
-%     I7 = 1-I6;
-%     
-%     % step 5: binary measurement on I7
-%     cc = bwconncomp(I7);
-%     stats1 = regionprops(cc, 'Extrema', 'Orientation');
-%     
-%     selected_objects = zeros(1, numel(stats1));
-%     I8 = I7;
-%     for j = 1: numel(stats1)
-%         
-%         % calculate height
-%         height = max(stats1(j).Extrema(:,2)) - min(stats1(j).Extrema(:,2)) +1;
-%         
-%         if (height > 32) && (stats1(j).Orientation > 75)
-%             selected_objects(j) = 1;
-%             
-%             % delete it from I7
-%             I8(min(stats1(j).Extrema(:,2)):max(stats1(j).Extrema(:,2)), min(stats1(j).Extrema(:,1)):max(stats1(j).Extrema(:,1))) = 0;
-%         end
-%     end
-%     
-%     % step 6: find bounding box in I8
-%     cc = bwconncomp(I8);
-%     stats1 = regionprops(cc, 'BoundingBox');
-%     
-% end
+%% find license plate (find the region that contains the most texts with MSER)
+possible_id = 1;
+max_text_count = 0;
+
+for i = 1:n
+    x_min = fix(matrix(i, 1));
+    x_max = fix(matrix(i, 2));
+    y_min = fix(matrix(i, 3));
+    y_max = fix(matrix(i, 4));
+    
+    % step 1: crop the image
+    I5 = sceneImage(y_min:y_max, x_min:x_max);
+    
+    % step 2: Detect MSER regions.
+    [mserRegions, mserConnComp] = detectMSERFeatures(I5, 'RegionAreaRange',[30 14000],'ThresholdDelta',4);
+    
+    % step 2-1: remove non-text region
+        % Use regionprops to measure MSER properties
+        mserStats = regionprops(mserConnComp, 'BoundingBox', 'Eccentricity', ...
+            'Solidity', 'Extent', 'Euler', 'Image');
+
+        % Compute the aspect ratio using bounding box data.
+        bbox = vertcat(mserStats.BoundingBox);
+        w = bbox(:,3);
+        h = bbox(:,4);
+        aspectRatio = w./h;
+
+        % Threshold the data to determine which regions to remove. These thresholds
+        % may need to be tuned for other images.
+        filterIdx = aspectRatio' > 3; 
+        filterIdx = filterIdx | [mserStats.Eccentricity] > .995 ;
+        filterIdx = filterIdx | [mserStats.Solidity] < .3;
+        filterIdx = filterIdx | [mserStats.Extent] < 0.2 | [mserStats.Extent] > 0.9;
+        filterIdx = filterIdx | [mserStats.EulerNumber] < -4;
+
+        % Remove regions
+        mserStats(filterIdx) = [];
+        mserRegions(filterIdx) = [];
+
+    % step 3: find the most possible region of the license
+    if mserRegions.Count > max_text_count
+        max_text_count = mserRegions.Count;
+        possible_id = i;
+    end
+    
+end
 
 %% show region
 
 figure, imshow(sceneImage);
 hold on;
 
-for i = 1:n
-    x = matrix(i,1);
-    y = matrix(i,3);
-    w = matrix(i,2) - matrix(i,1);
-    h = matrix(i,4) - matrix(i,3);
-    rectangle('Position', [x,y,w,h], 'EdgeColor','r');
+x = matrix(possible_id,1);
+y = matrix(possible_id,3);
+w = matrix(possible_id,2) - matrix(possible_id,1);
+h = matrix(possible_id,4) - matrix(possible_id,3);
+rectangle('Position', [x,y,w,h], 'EdgeColor','r');
+
+%% crop the image
+
+k = 2;
+new_y = fix(y - k*h);
+
+if new_y < 1
+    new_y = 1;
 end
 
+crop_image = sceneImage(new_y: fix(matrix(possible_id,4)), fix(matrix(possible_id,1)):fix(matrix(possible_id,2)));
+figure, imshow(crop_image);
