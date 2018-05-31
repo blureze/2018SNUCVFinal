@@ -1,4 +1,4 @@
-function Iand = SCW(img, x1, y1, x2, y2, threshold)
+function Iand = SCW(img, x1, y1, x2, y2, threshold, method)
 
 [row, col] = size(img);
 Iand = zeros(row, col);
@@ -14,8 +14,14 @@ for i = 1:row
         windowB = img_padding(i:i+2*y2-1, j:j+2*x2-1);
         
         % compute Ma and Mb
-        Ma = mean(windowA(:));
-        Mb = mean(windowB(:));
+        switch method
+            case 'mean'
+                Ma = mean(windowA(:));
+                Mb = mean(windowB(:));
+            case'std'
+                Ma = std2(windowA);
+                Mb = std2(windowB);
+        end
 
 %         
        % compare Mb/Ma with threshold
