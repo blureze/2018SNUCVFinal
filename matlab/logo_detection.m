@@ -1,12 +1,12 @@
-function crop_image = logo_detection(sceneImage, sobel_threshold, canny_threshold)
-% %% initialize
-% sobel_threshold = 0.2;
-% canny_threshold = 0.6;
+function [license_image, x, y, w, h] = logo_detection(sceneImage, sobel_threshold, canny_threshold)
+%% initialize
 flag = 0;
-
-% sceneImage = im2double(imread('../small sample/10.jpg'));
-% sceneImage = rgb2gray(sceneImage);
 I1 = sceneImage;
+license_image = [];
+x = 1;
+y = 1;
+[h, w] = size(sceneImage);
+
 
 % logo should be within the region where the car exists
 [upper_bound, lower_bound, left_bound, right_bound] = car_extraction(sceneImage, canny_threshold);
@@ -14,9 +14,11 @@ I1 = sceneImage;
 while 1
     % step 0: edge detection
     I1_edge = edge(I1,'sobel', sobel_threshold);
-    
+%     figure, imshow(I1_edge);
     % step 1: SCW
     Iand = SCW(I1_edge, 6, 2, 12, 4, 0.7);
+%     figure, imshow(Iand);
+    
     
     % step 2: masking
     I2 = I1 .* Iand;
@@ -24,7 +26,7 @@ while 1
     I2(lower_bound:end, :) = 0;
     I2(:, 1:left_bound) = 0;
     I2(:, right_bound:end) = 0;
-
+%     figure, imshow(I2);
 
     % step 4: get property of each object and select those with: 
     % 2 < 'Aspect Ratio'< 6, 'Orientation' < 35
@@ -56,7 +58,7 @@ while 1
     else
         if n == 0
             fprintf('No license plates found.\n');
-            break;
+            return;
         else
             break;
         end
@@ -129,24 +131,25 @@ end
 
 % figure, imshow(sceneImage);
 % hold on;
-% 
-% x = matrix(possible_id,1);
-% y = matrix(possible_id,3);
-% w = matrix(possible_id,2) - matrix(possible_id,1);
-% h = matrix(possible_id,4) - matrix(possible_id,3);
+
+x = fix(matrix(possible_id,1));
+y = fix(matrix(possible_id,3));
+w = fix(matrix(possible_id,2) - matrix(possible_id,1));
+h = fix(matrix(possible_id,4) - matrix(possible_id,3));
 % rectangle('Position', [x,y,w,h], 'EdgeColor','r');
 
-%% crop the image
+% crop the image
+license_image = sceneImage(y: y+h-1, x:x+w-1);
 
-k = 2;
-new_y = fix(y - k*h);
 
-if new_y < 1
-    new_y = 1;
-end
-
-crop_image = sceneImage(new_y: fix(matrix(possible_id,4)), fix(matrix(possible_id,1)):fix(matrix(possible_id,2)));
-% figure, imshow(crop_image);
-MyFolderInfo = dir('../day_color(small sample)/1-10');
-
-imwrite(crop_image, '../crop-image/');
+% k = 2;
+% y = matrix(possible_id,3);
+% h = matrix(possible_id,4) - matrix(possible_id,3);
+% 
+% new_y = fix(y - k*h);
+% 
+% if new_y < 1
+%     new_y = 1;
+% end
+% 
+% crop_image = sceneImage(new_y: fix(matrix(possible_id,4)), fix(matrix(possible_id,1)):fix(matrix(possible_id,2)));
