@@ -1,4 +1,4 @@
-function logo_region = phase_congruency(crop_image)
+function [logo_region, min_x, max_x] = phase_congruency(crop_image)
 
 [M, m, or, ft, pc, EO] = phasecong2(crop_image);
 pc_value = abs(EO{1,1});
@@ -10,8 +10,11 @@ pixels = find(gx >= threshold);   % find the pixels on x-axis that are below the
 if ~isempty(pixels) && numel(pixels) >= 5
     min_index = round(numel(pixels)/5*2);
     max_index = round(numel(pixels)/5*3);
+    
+    min_x = pixels(min_index);
+    max_x = pixels(max_index);
 
-    logo_region = crop_image(:,pixels(min_index):pixels(max_index));
+    logo_region = crop_image(:,min_x:max_x);
 else
     logo_region = crop_image;
 end

@@ -16,10 +16,10 @@ while 1
     I1_edge = edge(I1,'sobel', sobel_threshold);
 %       I1_edge = watershed(I1);
 
-    figure, imshow(I1_edge);
+%     figure, imshow(I1_edge);
     % step 1: SCW
     Iand = SCW(I1_edge, 6, 2, 12, 4, 0.7);
-    figure, imshow(Iand);
+%     figure, imshow(Iand);
     
     % step 2: masking
     I2 = I1 .* Iand;
@@ -27,7 +27,7 @@ while 1
     I2(lower_bound:end, :) = 0;
     I2(:, 1:left_bound) = 0;
     I2(:, right_bound:end) = 0;
-    figure, imshow(I2);
+%     figure, imshow(I2);
 
     % step 4: get property of each object and select those with: 
     % 2 < 'Aspect Ratio'< 6, 'Orientation' < 35
@@ -132,7 +132,7 @@ end
 %% show region
 
 if useMSER == 1
-    figure, imshow(sceneImage);
+%     figure, imshow(sceneImage);
     hold on;
 
     x = fix(matrix(possible_id,1));

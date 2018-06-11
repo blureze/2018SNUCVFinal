@@ -25,3 +25,8 @@ if new_y < 1
 end
 
 crop_image = sceneImage(new_y:new_y+new_h-1, new_x:new_x+new_w-1);
+% draw the region
+% figure, imshow(sceneImage);
+% hold on;
+% crop_image = sceneImage(new_y:new_y+new_h-1, new_x:new_x+new_w-1);
+% rectangle('Position', [new_x,new_y,new_w,new_h], 'EdgeColor','r');
